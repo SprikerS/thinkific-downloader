@@ -1,0 +1,15 @@
+# Virtual environment
+env
+
+# Cache files and logs
+__pycache__/
+*.py[cod]
+
+# Environment Variables
+.env
+
+# Logs
+logs
+
+# Temp folder
+tmp
