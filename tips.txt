@@ -1,0 +1,4 @@
+cada lesson puede tener su "html_text" y sus "download_files"
+
+cuando es un type == downloads quiere decir que el contenido es un html y tienes links a descargar
+mayormenete son puros codigos fuente

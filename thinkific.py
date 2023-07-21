@@ -203,6 +203,10 @@ class Thinkific:
             _url = LESSON_URL.format(self.domain, chapter['contentable_id'])
             resp = MethodsRequests._get(_url, cookies).json()
 
+            html_text = resp['lesson']['html_text']
+            if html_text is not None:
+                print(html_text)
+
             if 'videos' not in resp or len(resp['videos']) == 0:
                 return
 
@@ -296,8 +300,8 @@ class Thinkific:
 
 def main():
 
-    # url = 'https://cursos.devtalles.com/courses/qwik-introduccion'
-    url = 'https://academia.holamundo.io/courses/ultimate-python'
+    url = 'https://cursos.devtalles.com/courses/flutter-movil-intermedio'
+    # url = 'https://academia.holamundo.io/courses/ultimate-python'
 
     logger.info('> Starting...')
     thinkific = Thinkific(url)
