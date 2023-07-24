@@ -1,5 +1,6 @@
 import browser_cookie3
 import json
+import logging
 import os
 import re
 import requests
@@ -78,18 +79,22 @@ def pre_run():
 
 class MethodsRequests:
     @staticmethod
-    def _get(url: str, cookies=None):
-        try:
-            resp = requests.get(url, cookies=cookies)
-            resp.raise_for_status()
-            return resp
-        except Exception as e:
-            raise Exception('Error fetching url: {}'.format(url) + str(e))
+    def _get(url: str, cookies=None, max_retries=3):
+        for i in range(max_retries):
+            try:
+                resp = requests.get(url, cookies=cookies, timeout=10)
+                resp.raise_for_status()
+                return resp
+            except requests.exceptions.RequestException as e:
+                # Si ocurre un error en la solicitud, se imprimirá un mensaje de advertencia
+                # y se intentará nuevamente hasta que se alcance el máximo de intentos
+                logger.warning('Error fetching URL: {}, retrying... ({}) '.format(url, i + 1))
+        raise Exception('Error fetching url: {}'.format(url) + str(e))
 
     @staticmethod
     def _post(url: str, data: dict):
         try:
-            resp = requests.post(url, cookies=cookies, data=data)
+            resp = requests.post(url, cookies=cookies, data=data, timeout=10)
             resp.raise_for_status()
             return resp
         except Exception as e:
@@ -159,7 +164,8 @@ class Thinkific:
             for sec, chapter in enumerate(json_resp['chapters'], 1):
                 section_info = {}
                 section_name = re.sub(pattern_section, r'\1', chapter['name'])
-                section_info['name'] = '{:02d} {}'.format(sec, sanitize_filename(section_name))
+                section_info['name'] = '{}'.format(sanitize_filename(section_name))
+                section_info['number'] = str(sec).zfill(2)
                 section_info['len_chapters'] = len(chapter['content_ids'])
                 section_info['chapters'] = []
                 for chap, content_id in enumerate(chapter['content_ids'], 1):
@@ -169,7 +175,8 @@ class Thinkific:
                             chapter_name = re.sub(pattern_chapter, r'\1', content['name'])
                             chapter_info = {
                                 'index': index,
-                                'name': '{:02d} {}'.format(chap, sanitize_filename(chapter_name)),
+                                'name': '{}'.format(sanitize_filename(chapter_name)),
+                                'number': str(chap).zfill(2),
                                 'contentable_type': content['contentable_type'],
                                 'contentable_id': content['contentable_id'],
                                 'display_name': content['display_name'],
@@ -187,7 +194,7 @@ class Thinkific:
         try:
             _url = HTML_URL.format(self.domain, chapter['contentable_id'])
             resp = MethodsRequests._get(_url, cookies).json()
-            file_name = '{}.html'.format(chapter['name'])
+            file_name = '{} {}.html'.format(chapter['number'], chapter['name'])
             file_path = os.path.join(section_dir, file_name)
             with open(file_path, 'w', encoding='utf8' ) as file:
                 file.write(resp['html_item']['html_text'])
@@ -199,13 +206,33 @@ class Thinkific:
     def _extract_lesson(self, chapter: list, section_dir: str):
         try:
             chapter_name = chapter['name']
+            number_chapter = chapter['number']
             logger.info('> Fetching video {}...'.format(chapter_name))
             _url = LESSON_URL.format(self.domain, chapter['contentable_id'])
             resp = MethodsRequests._get(_url, cookies).json()
+            logger.info('> Fetching video terminated')
 
+            # Verificamos si la lesson tiene external links
             html_text = resp['lesson']['html_text']
             if html_text is not None:
-                print(html_text)
+                logger.info('> External links found')
+                soup = BeautifulSoup(html_text, 'html.parser')
+                for a in soup.find_all('a', href=True):
+                    name = a.text.strip() if a.text else 'No name'
+                    href = a['href']
+
+                    url_name = '{} {}.url'.format(number_chapter, sanitize_filename(name))
+                    url_body = f'[InternetShortcut]\nURL={href}'
+                    with open(os.path.join(section_dir, url_name), 'w', encoding='utf-8') as f:
+                        f.write(url_body)
+
+            # Verificamos si la lesson tiene material descargable
+            if 'download_files' in resp and len(resp['download_files']) > 0:
+                logger.info('> Material download found')
+                for file in resp['download_files']:
+                    name = '{} {}'.format(number_chapter, sanitize_filename(file['file_name']))
+                    link = file['download_url']
+                    download_aria(link, name, section_dir)
 
             if 'videos' not in resp or len(resp['videos']) == 0:
                 return
@@ -223,7 +250,7 @@ class Thinkific:
                 return
 
             logger.info('> Successfully fetched video')
-            video_name = '{}{}'.format(chapter_name, video_ext)
+            video_name = '{} {}{}'.format(number_chapter, chapter_name, video_ext)
             download_aria(video_url, video_name, section_dir)
         except Exception as e:
             logger.exception('> Failed to download video: {}'.format(e))
@@ -277,30 +304,55 @@ class Thinkific:
             logger.exception('> Error Quality: {}'.format(e))
 
 
+    def _extract_download(self, chapter: list, section_dir: str):
+        try:
+            _url = DOWNLOAD_URL.format(self.domain, chapter['contentable_id'])
+            resp = MethodsRequests._get(_url, cookies).json()
+
+            # Save download files if exists
+            if 'download_files' in resp and len(resp['download_files']) > 0:
+                for file in resp['download_files']:
+                    name = '{} {}'.format(chapter['number'], sanitize_filename(file['file_name']))
+                    link = file['download_url']
+                    download_aria(link, name, section_dir)
+
+            # Save content html is exists
+            html_description = resp['download'].get('html_description')
+            if html_description is not None:
+                name = '{} {}.html'.format(chapter['number'], chapter['name'])
+                with open(os.path.join(section_dir, name), 'w', encoding='utf8') as file:
+                    file.write(html_description)
+
+        except Exception as e:
+            logger.exception('Could not get download type: {}'.format(e))
+
+
     def parse_sections(self, thinkific_object: dict):
         course_dir = os.path.join(DOWNLOAD_DIR, thinkific_object['name'])
         if not os.path.exists(course_dir):
             os.mkdir(course_dir)
 
-        for section_index, section in enumerate(thinkific_object['sections'], 1):
-            section_dir = os.path.join(course_dir, section['name'])
-            if not os.path.exists(section_dir):
-                os.mkdir(section_dir)
-            logger.info('============== Processing section {:02d} of {:02d} =============='.format(section_index, thinkific_object['len_sections']))
+        for index, section in enumerate(thinkific_object['sections']):
+            if index >= 0:
+                section_name = '{} {}'.format(section['number'], section['name'])
+                section_dir = os.path.join(course_dir, section_name)
+                if not os.path.exists(section_dir):
+                    os.mkdir(section_dir)
+                logger.info('============== Processing section {} of {:02d} =============='.format(section['number'], thinkific_object['len_sections']))
 
-            for chapter_index, chapter in enumerate(section['chapters'], 1):
-                logger.info('> Processing chapter {:02d} of {:02d}...'.format(chapter_index, section['len_chapters']))
-                if chapter['contentable_type'] == 'HtmlItem':
-                    self._extract_html(chapter, section_dir)
-                if chapter['contentable_type'] == 'Lesson':
-                    self._extract_lesson(chapter, section_dir)
-                # if content['contentable_type'] == 'Download':
-                #     print(content['contentable_id'])
+                for chapter in section['chapters']:
+                    logger.info('> Processing chapter {} of {:02d}...'.format(chapter['number'], section['len_chapters']))
+                    if chapter['contentable_type'] == 'HtmlItem':
+                        self._extract_html(chapter, section_dir)
+                    elif chapter['contentable_type'] == 'Lesson':
+                        self._extract_lesson(chapter, section_dir)
+                    elif chapter['contentable_type'] == 'Download':
+                        self._extract_download(chapter, section_dir)
 
 
 def main():
 
-    url = 'https://cursos.devtalles.com/courses/flutter-movil-intermedio'
+    url = 'https://cursos.devtalles.com/courses/PWA'
     # url = 'https://academia.holamundo.io/courses/ultimate-python'
 
     logger.info('> Starting...')

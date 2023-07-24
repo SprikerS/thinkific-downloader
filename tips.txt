@@ -1,4 +1,36 @@
-cada lesson puede tener su "html_text" y sus "download_files"
+✅  Angular Avanzado: Lleva tus bases al siguiente nivel - MEAN                 11/2022
+✅  Angular de cero a experto - Edición 2023                                    05/2023
+✅  Dart: De cero hasta los detalles                                            01/2023
+✅  Docker - Guía práctica de uso para desarrolladores                          03/2023
+✅  Flutter - Móvil: De cero a experto - Edición 2023                           06/2023
+✅  Flutter Avanzado: Lleva tu conocimiento al siguiente nivel                  01/2022
+✅  Flutter Intermedio: Diseños profesionales y animaciones                     11/2022
+✅  Flutter Móvil: Recursos Nativos - Nivel Intermedio                          06/2023
+✅  Flutter Web: Aplicaciones y páginas web profesionales                       10/2022
+✅  GIT+GitHub: Todo un sistema de control de versiones de cero                 04/2023
+✅  JavaScript Moderno: Guía para dominar el lenguaje                           06/2023
+    Legacy - Angular (V14): De cero a experto                                          
+    Legacy - React (v16, 17): De cero a experto                                        
+✅  Nest + GraphQL:  Evoluciona tus APIs                                        01/2023
+✅  Nest: Desarrollo backend escalable con Node                                 10/2022
+✅  Next.js: El framework de React para producción                              05/2023
+🔨  Next.js: El framework de React para producción - 2023                              
+✅  Node: De cero a experto                                                     11/2022
+    Principios SOLID y Clean Code                                               07/2022
+    Programación para principiantes - Primeros pasos                            08/2022
+    PWA - Aplicaciones Web Progresivas: De cero a experto                       01/2023
+✅  React Native: Aplicaciones nativas para IOS y Android                       07/2022
+✅  React PRO: Lleva tus bases al siguiente nivel                               04/2022
+✅  React: Aplicaciones en tiempo real con Socket-io                            11/2020
+✅  React: De cero a experto ( Hooks y MERN )                                   12/2022
+✅  ReactiveX - RxJs: De cero hasta los detalles                                06/2022
+🔨  SQL de cero: Tu guía práctica con PostgreSQL                                       
+✅  TypeScript: Tu completa guía y manual de mano                               04/2023
+✅  Vue.js - Intermedio: Lleva tus bases al siguiente nivel                     12/2022
+✅  Vue.js: De cero a experto                                                   03/2023
 
-cuando es un type == downloads quiere decir que el contenido es un html y tienes links a descargar
-mayormenete son puros codigos fuente
+    Qwik - Introducción al Framework
+    React Query - Un poderoso gestor de estado asíncrono.
+    Visual Studio Code: Mejora tu velocidad para codificar
+
+    Legacy - Flutter: Tu guía completa para IOS y Android
