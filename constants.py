@@ -26,3 +26,4 @@ DOWNLOAD_URL   = 'https://{}/api/course_player/v2/downloads/{}'
 # CHAPTERS https://cursos.devtalles.com/api/course_player/v2/courses/17628065/chapters
 # LESSONS https://cursos.devtalles.com/api/course_player/v2/lessons/17628065
 # CONTENTS https://cursos.devtalles.com/api/course_player/v2/contents/42481177
+# logging.StreamHandler.emit = lambda self, record: print(self.format(record).encode('utf-8').decode('utf-8'))

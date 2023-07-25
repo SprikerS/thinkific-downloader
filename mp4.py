@@ -12,6 +12,7 @@ from thinkific import Thinkific, MethodsRequests
 
 cookies = browser_cookie3.chrome()
 quality = None
+download_dir = r'D:\courses'
 
 
 def download_aria(url: str, filename: str, file_dir: str):
@@ -116,9 +117,9 @@ def extract_lesson(uid: int):
             asset = assets[0]
             if isinstance(quality, int):
                 asset = min(assets, key=lambda x: abs(int(x.get('height')) - quality))
-            print(assets)
+            download_aria(asset['url'], 'test.mp4', download_dir)
         else:
-            print ('No se encontraron assets')
+            print ('No video sources found')
     except Exception as e:
         print (f'{e}')
 

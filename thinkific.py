@@ -203,6 +203,78 @@ class Thinkific:
             logger.exception('Failed to write html file: {}'.format(e))
 
 
+    def _get_video_proxy(self, resp: dict):
+        if 'videos' in resp and resp['videos'] is not None:
+            identifier = resp['videos'][0]['identifier']
+            try:
+                videoproxy = VIDEOPROXY_URL.format(identifier)
+                resp = MethodsRequests._get(videoproxy).text
+                soup = BeautifulSoup(resp, 'html.parser')
+                pattern = re.compile(r'embed/medias/.*\.jsonp')
+                for script_tag in soup.find_all('script', src=True):
+                    url_jsonp = script_tag['src']
+                    if pattern.search(url_jsonp):
+                        return url_jsonp
+            except Exception as e:
+                logger.exception(f'Error in VideoProxy: {e}')
+        return None
+
+
+    def _get_jsonp_data(self, url_jsonp: str):
+        try:
+            resp  = MethodsRequests._get(url_jsonp).text
+            jsonp = re.search(r'window\[\'wistiajsonp-[^\'\]]+\'] = (.+?);', resp)
+            if jsonp:
+                jsonp_str = jsonp.group(1)
+                json_data = json.loads(jsonp_str)
+                return json_data
+        except Exception as e:
+            logger.exception(f'Error in JSONP: {e}')
+
+
+    def _get_qualities(self, jsonp: list):
+        selected_assets = []
+        unique_heights  = set()
+
+        try:
+            for asset in jsonp['media']['assets']:
+                type, height, width, url = asset['type'], asset['height'], asset['width'], asset['url']
+
+                if height in unique_heights:
+                    continue
+
+                if type.endswith('_video') or type == 'original':
+                    selected_assets.append({
+                        'type'   : type,
+                        'width'  : width,
+                        'height' : height,
+                        'url'    : url,
+                    })
+                unique_heights.add(height)
+
+            return selected_assets
+        except Exception as e:
+            logger.exception(f'Error in Qualities: {e}')
+
+
+    def _processing_download(self, resp: dict):
+        try:
+            proxy = self._get_video_proxy(resp)
+            if not proxy:
+                return
+
+            jsonp = self._get_jsonp_data(proxy)
+            if not jsonp:
+                return
+            qualities = self._get_qualities(jsonp)
+            if not qualities:
+                return
+
+            return qualities
+        except Exception as e:
+            logger.exception(f'Error in Processing Download: {e}')
+
+
     def _extract_lesson(self, chapter: list, section_dir: str):
         try:
             chapter_name = chapter['name']
@@ -234,24 +306,21 @@ class Thinkific:
                     link = file['download_url']
                     download_aria(link, name, section_dir)
 
-            if 'videos' not in resp or len(resp['videos']) == 0:
-                return
+            # Extraemos el video
+            sources = self._processing_download(resp)
+            sources = sorted(sources, key=lambda x: int(x.get('height')), reverse=True)
+            if sources:
+                source = sources[0]
+                if isinstance(quality, int):
+                    source = min(sources, key=lambda x: abs(int(x.get('height')) - quality))
+                video_url = source['url']
 
-            identifier = resp['videos'][0]['identifier']
-            if identifier is None:
-                return
 
-            jsonp_data = self._extract_jsonp_data(self._extract_video_proxy(identifier))
-            if jsonp_data is None:
-                return
-
-            video_url, video_ext = self._extract_quality(jsonp_data)
-            if video_url is None or video_ext is None:
-                return
-
-            logger.info('> Successfully fetched video')
-            video_name = '{} {}{}'.format(number_chapter, chapter_name, video_ext)
-            download_aria(video_url, video_name, section_dir)
+                logger.info('> Successfully fetched video')
+                video_name = '{} {}{}'.format(number_chapter, chapter_name, '.mp4')
+                download_aria(video_url, video_name, section_dir)
+            else:
+                logger.info('> No video sources found')
         except Exception as e:
             logger.exception('> Failed to download video: {}'.format(e))
 
