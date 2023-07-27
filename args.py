@@ -319,6 +319,9 @@ class Thinkific:
                 if isinstance(quality, int):
                     source = min(sources, key=lambda x: abs(int(x.get('height')) - quality))
                 video_url = source['url']
+
+                logger.info('> Downloading video in resolution {}p'.format(source['height']))
+
                 download_aria(video_url, video_name, section_dir)
             except Exception as e:
                 logger.exception('> Failed to process sources: {}'.format(e))
@@ -382,8 +385,9 @@ class Thinkific:
             os.mkdir(course_dir)
         # with open(os.path.join(course_dir, f"{thinkific_object['slug']}.json"), 'w', encoding='utf-8') as file:
         #     json.dump(thinkific_object, file, indent=4, ensure_ascii=False)
-        for sec, section in enumerate(thinkific_object['sections'], 1):
-            # if sec == 1:
+        try:
+            for sec, section in enumerate(thinkific_object['sections'], 1):
+                # if sec == 1:
                 section_name = '{} {}'.format(section['number'], section['name'])
                 section_dir  = os.path.join(course_dir, section_name)
                 if not os.path.exists(section_dir):
@@ -398,6 +402,8 @@ class Thinkific:
                         self._extract_lesson(chapter, section_dir)
                     elif type == 'Download':
                         self._extract_download(chapter, section_dir)
+        except KeyboardInterrupt as e:
+            logger.warning('> Program interrupted by user')
 
 
 def main():
