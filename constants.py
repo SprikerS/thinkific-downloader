@@ -20,6 +20,7 @@ HTML_URL       = 'https://{}/api/course_player/v2/html_items/{}'
 LESSON_URL     = 'https://{}/api/course_player/v2/lessons/{}'
 VIDEOPROXY_URL = 'https://platform.thinkific.com/videoproxy/v1/play/{}'
 DOWNLOAD_URL   = 'https://{}/api/course_player/v2/downloads/{}'
+QUIZ_URL       = 'https://{}/api/course_player/v2/quizzes/{}'
 
 
 # HOME https://cursos.devtalles.com/api/course_player/v2/courses/flutter-movil-cero-a-experto
