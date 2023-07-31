@@ -43,10 +43,14 @@ def extract_quizzes(number:int, uid: int):
     _url = QUIZ_URL.format('cursos.devtalles.com', uid)
     resp = MethodsRequests._get(_url, cookies).json()
 
-    file_contents = '<h3 style="color: red;">The answers of this quiz are marked with [•]</h3>'
+    file_contents = '<h3 style="color: red">The answers of this quiz are marked with [•]</h3>'
     for question in resp['questions']:
-        prompt = BeautifulSoup(question['prompt'], 'html.parser').text
-        file_contents += f'<strong>{question["position"] + 1}) {prompt}</strong><br>'
+        prompt = BeautifulSoup(question['prompt'], 'html.parser')
+        file_contents += f'<strong>{question["position"] + 1}) {prompt.text}</strong><br>'
+
+        for img in prompt.find_all('img', src=True):
+            img = img['src']
+            file_contents += f'<br><img style="max-width: 70%" src="{img}"><br>'
 
         if question['text_explanation']:
             explanation = BeautifulSoup(question['text_explanation'], 'html.parser').text
@@ -68,9 +72,9 @@ def extract_quizzes(number:int, uid: int):
         file.write(file_contents)
 
 uids = [
-    2071835,
-    2072118,
-    2072375
+    2434861,
+    2434864,
+    2434874
 ]
 
 

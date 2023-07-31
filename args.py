@@ -105,7 +105,7 @@ class MethodsRequests:
                 resp.raise_for_status()
                 return resp
             except requests.exceptions.RequestException as e:
-                logger.warning('Error fetching URL: {}, retrying... ({}) '.format(url, i + 1))
+                logger.warning('> Error fetching URL: {}, retrying... ({}) '.format(url, i + 1))
         sys.exit(1)
 
 
@@ -401,10 +401,14 @@ class Thinkific:
 
     def _get_quiz_questions(self, resp: str):
         try:
-            file_contents = '<h3 style="color: red;">The answers of this quiz are marked with [•]</h3>'
+            file_contents = '<h3 style="color: red">The answers of this quiz are marked with [•]</h3>'
             for question in resp['questions']:
-                prompt = BeautifulSoup(question['prompt'], 'html.parser').text
-                file_contents += f'<strong>{question["position"] + 1}) {prompt}</strong><br>'
+                prompt = BeautifulSoup(question['prompt'], 'html.parser')
+                file_contents += f'<strong>{question["position"] + 1}) {prompt.text}</strong><br>'
+
+                for img in prompt.find_all('img', src=True):
+                    img = img['src']
+                    file_contents += f'<br><img style="max-width: 70%" src="{img}"><br>'
 
                 if question['text_explanation']:
                     explanation = BeautifulSoup(question['text_explanation'], 'html.parser').text
