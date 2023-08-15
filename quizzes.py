@@ -46,7 +46,7 @@ def extract_quizzes(number:int, uid: int):
     file_contents = '<h3 style="color: red">The answers of this quiz are marked with [•]</h3>'
     for question in resp['questions']:
         prompt = BeautifulSoup(question['prompt'], 'html.parser')
-        file_contents += f'<strong>{question["position"] + 1}) {prompt.text}</strong><br>'
+        file_contents += f'<strong style="color: #1967d2">{question["position"] + 1}) {prompt.text}</strong><br>'
 
         for img in prompt.find_all('img', src=True):
             img = img['src']
@@ -54,7 +54,7 @@ def extract_quizzes(number:int, uid: int):
 
         if question['text_explanation']:
             explanation = BeautifulSoup(question['text_explanation'], 'html.parser').text
-            file_contents += f'Explanation: {explanation} <br>'
+            file_contents += f'<br><strong style="color: #fba026">Explanation: {explanation}</strong><br>'
 
         # choices_iterator = ChoiceIterator(resp['choices'], question['id'])
         # for ans, txt in choices_iterator:
@@ -72,9 +72,11 @@ def extract_quizzes(number:int, uid: int):
         file.write(file_contents)
 
 uids = [
-    2434861,
-    2434864,
-    2434874
+    2124858,
+    2125456,
+    2125596,
+    2127174,
+    2127571
 ]
 
 

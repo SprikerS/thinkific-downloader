@@ -60,9 +60,9 @@ def init():
     global browser, course_url, disable_original, DOWNLOAD_DIR, logger, quality
 
     parser = argparse.ArgumentParser(description='Thinkific Downloader')
+    parser.add_argument('-b', '--browser', dest='browser', choices=['brave', 'chrome', 'chromium', 'edge', 'firefox', 'opera', 'safari', 'vivaldi'], help='The browser to use for authentication', required=True)
     parser.add_argument('-c', '--course-url', dest='course_url', type=str, help='The URL of the course to download', required=True)
     parser.add_argument('-q', '--quality', dest='quality', type=int, help='The quality of the video to download')
-    parser.add_argument('-b', '--browser', dest='browser', choices=['chrome', 'firefox', 'opera', 'edge', 'brave', 'chromium', 'vivaldi', 'safari'], help='The browser to use for authentication', required=True)
     parser.add_argument('-d', '--directory', dest='directory', type=str, help='The directory to download the course to')
     parser.add_argument('--disable-original', dest='disable_original', action='store_true', help='Disable downloading of original quality videos')
 
@@ -104,8 +104,8 @@ class MethodsRequests:
                 resp = requests.get(url, cookies=cookies, timeout=10)
                 resp.raise_for_status()
                 return resp
-            except requests.exceptions.RequestException as e:
-                logger.warning('> Error fetching URL: {}, retrying... ({}) '.format(url, i + 1))
+            except requests.exceptions.RequestException:
+                logger.warning(f'> Error fetching URL: {url}, retrying... ({i + 1}) ')
         sys.exit(1)
 
 
@@ -114,25 +114,25 @@ class Thinkific:
         global cookies
         self.domain, self.course = self._extract_domain_course()
 
-        if browser == 'chrome':
+        if browser == 'brave':
+            cookies = browser_cookie3.brave()
+        elif browser == 'chrome':
             cookies = browser_cookie3.chrome()
+        elif browser == 'chromium':
+            cookies = browser_cookie3.chromium()
+        elif browser == 'edge':
+            cookies = browser_cookie3.edge()
         elif browser == 'firefox':
             cookies = browser_cookie3.firefox()
         elif browser == 'opera':
             cookies = browser_cookie3.opera()
-        elif browser == 'edge':
-            cookies = browser_cookie3.edge()
-        elif browser == 'brave':
-            cookies = browser_cookie3.brave()
-        elif browser == 'chromium':
-            cookies = browser_cookie3.chromium()
         elif browser == 'vivaldi':
             cookies = browser_cookie3.vivaldi()
 
 
     def _extract_domain_course(self):
-        pattern = r'(?i)https?://(?P<domain>[\w.-]+)/(?:courses/)?(?P<course>[\w-]+)'
-        match = re.search(pattern, course_url)
+        regex = r'(?i)https?://(?P<domain>[\w.-]+)/(?:courses/)?(?P<course>[\w-]+)'
+        match = re.search(regex, course_url)
         if match:
             return match.group('domain'), match.group('course')
         else:
@@ -145,7 +145,7 @@ class Thinkific:
         try:
             resp = MethodsRequests._get(_url, cookies).json()
             if 'error' in resp:
-                logger.error('Error: {}'.format(resp['error']))
+                logger.error(f'Error: {resp["error"]}')
                 sys.exit(1)
             return resp
         except Exception as e:
@@ -153,40 +153,40 @@ class Thinkific:
 
 
     def _thinkific_object(self, resp: dict):
-        types_of_course = set()
-        pattern_section = r'(?:Sección \d+: |Sección \d+ - )(.+)'
-        pattern_chapter = r'^\d+\s*-\s*(.+)'
+        types_course  = set()
+        regex_section = r'(?:Sección \d+: |Sección \d+ - )(.+)'
+        regex_chapter = r'^\d+\s*-\s*(.+)'
         try:
             thinkific_object = {}
-            thinkific_object['id'] = resp['course']['id']
-            thinkific_object['name'] = sanitize_filename(resp['course']['name'])
-            thinkific_object['slug'] = resp['course']['slug']
+            thinkific_object['id']           = resp['course']['id']
+            thinkific_object['name']         = sanitize_filename(resp['course']['name'])
+            thinkific_object['slug']         = resp['course']['slug']
             thinkific_object['len_sections'] = len(resp['chapters'])
             thinkific_object['len_chapters'] = len(resp['contents'])
-            thinkific_object['sections'] = []
+            thinkific_object['sections']     = []
             for sec, chapter in enumerate(resp['chapters'], 1):
-                section_info = {}
-                section_name = re.sub(pattern_section, r'\1', chapter['name'])
-                section_info['name'] = '{}'.format(sanitize_filename(section_name))
-                section_info['number'] = str(sec).zfill(2)
+                section_info                 = {}
+                section_name                 = re.sub(regex_section, r'\1', chapter['name'])
+                section_info['name']         = f'{sanitize_filename(section_name)}'
+                section_info['number']       = str(sec).zfill(2)
                 section_info['len_chapters'] = len(chapter['content_ids'])
-                section_info['chapters'] = []
+                section_info['chapters']     = []
                 for chap, content_id in enumerate(chapter['content_ids'], 1):
                     for index, content in enumerate(resp['contents'], 1):
-                        types_of_course.add(content['contentable_type'])
+                        types_course.add(content['contentable_type'])
                         if content['id'] == content_id and not content['payment_required']:
-                            chapter_name = re.sub(pattern_chapter, r'\1', content['name'])
+                            chapter_name = re.sub(regex_chapter, r'\1', content['name'])
                             chapter_info = {
-                                'index': index,
-                                'name': '{}'.format(sanitize_filename(chapter_name)),
-                                'number': str(chap).zfill(2),
-                                'contentable_type': content['contentable_type'],
-                                'contentable_id': content['contentable_id'],
-                                'display_name': content['display_name'],
+                                'index'            : index,
+                                'name'             : f'{sanitize_filename(chapter_name)}',
+                                'number'           : str(chap).zfill(2),
+                                'display_name'     : content['display_name'],
+                                'contentable_id'   : content['contentable_id'],
+                                'contentable_type' : content['contentable_type'],
                             }
                             section_info['chapters'].append(chapter_info)
                 thinkific_object['sections'].append(section_info)
-            types_string = ' - '.join(types_of_course)
+            types_string = ' - '.join(types_course)
             logger.info(f'> Types    : {types_string}')
             return thinkific_object
         except Exception as e:
@@ -196,7 +196,7 @@ class Thinkific:
     def _extract_html(self, chapter: list, section_dir: str):
         try:
             _url = HTML_URL.format(self.domain, chapter['contentable_id'])
-            file_name = '{} {}.html'.format(chapter['number'], chapter['name'])
+            file_name = f'{chapter["number"]} {chapter["name"]}.html'
             file_path = os.path.join(section_dir, file_name)
             if not os.path.exists(file_path):
                 logger.info(f'> Getting information from the class {chapter["name"]}...')
@@ -205,9 +205,9 @@ class Thinkific:
                     file.write(resp['html_item']['html_text'])
                 logger.info(f'> Successfully downloaded {file_name}')
             else:
-                logger.info('> File {} already exists, skipping...'.format(file_name))
+                logger.info(f'> File {file_name} already exists, skipping...')
         except Exception as e:
-            logger.exception('> Failed to write html file: {}'.format(e))
+            logger.exception(f'> Could not get html type: {e}')
 
 
     def _verify_html(self, resp: dict, number_chapter: str, section_dir: str):
@@ -220,15 +220,15 @@ class Thinkific:
             name = a.text.strip() if a.text else 'No name'
             href = a['href']
 
-            url_name  = '{} {}.url'.format(number_chapter, sanitize_filename(name))
-            file_path = os.path.join(section_dir, url_name)
+            file_name = f'{number_chapter} {sanitize_filename(name)}.url'
+            file_path = os.path.join(section_dir, file_name)
             if not os.path.exists(file_path):
                 url_body = f'[InternetShortcut]\nURL={href}'
-                with open(os.path.join(section_dir, url_name), 'w', encoding='utf-8') as f:
+                with open(os.path.join(section_dir, file_name), 'w', encoding='utf-8') as f:
                     f.write(url_body)
-                logger.info(f'> Successfully downloaded {url_name}')
+                logger.info(f'> Successfully downloaded {file_name}')
             else:
-                logger.info('> File {} already exists, skipping...'.format(url_name))
+                logger.info(f'> File {file_name} already exists, skipping...')
 
 
     def _files_download(self, resp: dict, chapter: list, section_dir: str):
@@ -236,28 +236,28 @@ class Thinkific:
             if 'download_files' in resp and len(resp['download_files']) > 0:
                 logger.info('> Material download found')
                 for file in resp['download_files']:
-                    name = '{} {}'.format(chapter['number'], sanitize_filename(file['file_name']))
-                    file_path = os.path.join(section_dir, name)
+                    file_name = f'{chapter["number"]} {sanitize_filename(file["file_name"])}'
+                    file_path = os.path.join(section_dir, file_name)
                     if not self._file_already_downloaded(file_path):
                         link = file['download_url']
-                        download_aria(link, name, section_dir)
+                        download_aria(link, file_name, section_dir)
                     else:
-                        logger.info('> File {} already exists, skipping...'.format(name))
+                        logger.info(f'> File {file_name} already exists, skipping...')
         except Exception as e:
-            logger.exception('> Failed to download file: {}'.format(e))
+            logger.exception(f'> Failed to download file: {e}')
 
 
     def _get_video_proxy(self, resp: dict):
         if 'videos' in resp and resp['videos'] is not None:
             identifier = resp['videos'][0]['identifier']
             try:
-                videoproxy = VIDEOPROXY_URL.format(identifier)
-                resp = MethodsRequests._get(videoproxy).text
-                soup = BeautifulSoup(resp, 'html.parser')
-                pattern = re.compile(r'embed/medias/.*\.jsonp')
+                proxy = VIDEOPROXY_URL.format(identifier)
+                resp  = MethodsRequests._get(proxy).text
+                soup  = BeautifulSoup(resp, 'html.parser')
+                regex = re.compile(r'embed/medias/.*\.jsonp')
                 for script_tag in soup.find_all('script', src=True):
                     url_jsonp = script_tag['src']
-                    if pattern.search(url_jsonp):
+                    if regex.search(url_jsonp):
                         return url_jsonp
             except Exception as e:
                 logger.exception(f'> Error in VideoProxy: {e}')
@@ -277,11 +277,11 @@ class Thinkific:
 
 
     def _get_qualities(self, jsonp: list):
-        selected_assets = []
         unique_heights  = set()
+        selected_assets = []
         try:
             for asset in jsonp['media']['assets']:
-                type, height, width, url = asset['type'], asset['height'], asset['width'], asset['url']
+                height, type, url, width = asset['height'], asset['type'], asset['url'], asset['width']
 
                 if not (type.endswith('_video') or (not disable_original and type == 'original')):
                     continue
@@ -290,10 +290,10 @@ class Thinkific:
                     continue
 
                 selected_assets.append({
-                    'type'   : type,
-                    'width'  : width,
                     'height' : height,
+                    'type'   : type,
                     'url'    : url,
+                    'width'  : width,
                 })
                 unique_heights.add(height)
 
@@ -308,7 +308,7 @@ class Thinkific:
 
 
     def _process_sources(self, resp: dict, number_chapter: str, chapter_name: str, section_dir: str):
-        video_name = '{} {}.mp4'.format(number_chapter, chapter_name)
+        video_name = f'{number_chapter} {chapter_name}.mp4'
         video_path = os.path.join(section_dir, video_name)
 
         if not self._file_already_downloaded(video_path):
@@ -338,34 +338,35 @@ class Thinkific:
                     source = min(sources, key=lambda x: abs(int(x.get('height')) - quality))
                 video_url = source['url']
 
-                logger.info('> Downloading video in resolution {}p'.format(source['height']))
+                logger.info(f'> Downloading video in resolution {source["height"]}p')
 
                 download_aria(video_url, video_name, section_dir)
             except Exception as e:
-                logger.exception('> Failed to process sources: {}'.format(e))
+                logger.exception(f'> Failed to process sources: {e}')
         else:
-            logger.info('> File {} already exists, skipping...'.format(video_name))
+            logger.info(f'> File {video_name} already exists, skipping...')
 
 
     def _extract_lesson(self, chapter: list, section_dir: str):
         try:
-            number_chapter = chapter['number']
-            chapter_name = chapter['name']
-            logger.info('> Fetching video {}...'.format(chapter_name))
+            chapter_name   = chapter['name']
+            chapter_number = chapter['number']
+
+            logger.info(f'> Fetching video {chapter_name}...')
             _url = LESSON_URL.format(self.domain, chapter['contentable_id'])
             resp = MethodsRequests._get(_url, cookies).json()
             logger.info('> Successfully fetched video')
 
             # Check if there are external links
-            self._verify_html(resp, number_chapter, section_dir)
+            self._verify_html(resp, chapter_number, section_dir)
 
             # Check for downloadable content
             self._files_download(resp, chapter, section_dir)
 
             # Check if there is a video
-            self._process_sources(resp, number_chapter, chapter_name, section_dir)
+            self._process_sources(resp, chapter_number, chapter_name, section_dir)
         except Exception as e:
-            logger.exception('> Failed to extract lesson: {}'.format(e))
+            logger.exception(f'> Could not get lesson type: {e}')
 
 
     def _extract_download(self, chapter: list, section_dir: str):
@@ -379,17 +380,17 @@ class Thinkific:
             # Save content html is exists
             html_description = resp['download'].get('html_description')
             if html_description is not None:
-                name = '{} {}.html'.format(chapter['number'], chapter['name'])
-                file_path = os.path.join(section_dir, name)
+                file_name = f'{chapter["number"]} {chapter["name"]}.html'
+                file_path = os.path.join(section_dir, file_name)
                 if not os.path.exists(file_path):
-                    with open(os.path.join(section_dir, name), 'w', encoding='utf8') as file:
+                    with open(os.path.join(section_dir, file_name), 'w', encoding='utf8') as file:
                         file.write(html_description)
-                    logger.info(f'> Successfully downloaded {name}')
+                    logger.info(f'> Successfully downloaded {file_name}')
                 else:
-                    logger.info('> File {} already exists, skipping...'.format(name))
+                    logger.info(f'> File {file_name} already exists, skipping...')
 
         except Exception as e:
-            logger.exception('> Could not get download type: {}'.format(e))
+            logger.exception(f'> Could not get download type: {e}')
 
 
     def _decode_base64(self, base64_str: str):
@@ -423,7 +424,7 @@ class Thinkific:
                 file_contents += '<br><br>'
             return file_contents
         except Exception as e:
-            logger.exception('> Error while getting quiz questions: {}'.format(e))
+            logger.exception(f'> Error while getting quiz questions: {e}')
 
 
     def _extract_quiz(self, chapter: dict, section_dir: str):
@@ -431,19 +432,18 @@ class Thinkific:
             _url = QUIZ_URL.format(self.domain, chapter['contentable_id'])
             resp = MethodsRequests._get(_url, cookies).json()
 
-            name = '{} {}.html'.format(chapter['number'], chapter['name'])
-            file_path = os.path.join(section_dir, name)
+            file_name = f'{chapter["number"]} {chapter["name"]}.html'
+            file_path = os.path.join(section_dir, file_name)
 
             if not os.path.exists(file_path):
                 quiz_html = self._get_quiz_questions(resp)
-                with open(os.path.join(section_dir, name), 'w', encoding='utf8') as file:
+                with open(os.path.join(section_dir, file_name), 'w', encoding='utf8') as file:
                     file.write(quiz_html)
-                logger.info(f'> Successfully downloaded {name}')
+                logger.info(f'> Successfully downloaded {file_name}')
             else:
-                logger.info('> File {} already exists, skipping...'.format(name))
-
+                logger.info(f'> File {file_name} already exists, skipping...')
         except Exception as e:
-            logger.exception('> Could not get quiz type: {}'.format(e))
+            logger.exception(f'> Could not get quiz type: {e}')
 
 
     def parse_sections(self, thinkific_object: dict):
@@ -455,23 +455,23 @@ class Thinkific:
         try:
             for sec, section in enumerate(thinkific_object['sections'], 1):
                 # if sec == 7:
-                section_name = '{} {}'.format(section['number'], section['name'])
+                section_name = f'{section["number"]} {section["name"]}'
                 section_dir  = os.path.join(course_dir, section_name)
                 if not os.path.exists(section_dir):
                     os.mkdir(section_dir)
-                logger.info(f' ==================== Processing section {sec:02d} of {thinkific_object["len_sections"]:02d}  ====================')
+                logger.info(f'==================== Processing section {sec:02d} of {thinkific_object["len_sections"]:02d}  ====================')
                 for chap, chapter in enumerate(section['chapters'], 1):
                     logger.info(f'> Procesing chapter {chapter["number"]} of {section["len_chapters"]:02d}')
                     type = chapter['contentable_type']
-                    if type == 'HtmlItem':
+                    if type == 'Download':
+                        self._extract_download(chapter, section_dir)
+                    elif type == 'HtmlItem':
                         self._extract_html(chapter, section_dir)
                     elif type == 'Lesson':
                         self._extract_lesson(chapter, section_dir)
-                    elif type == 'Download':
-                        self._extract_download(chapter, section_dir)
                     elif type == 'Quiz':
                         self._extract_quiz(chapter, section_dir)
-        except KeyboardInterrupt as e:
+        except KeyboardInterrupt:
             logger.warning('> Program interrupted by user')
 
 
@@ -494,6 +494,7 @@ def main():
 
     logger.info('> Starting download...')
     thinkific.parse_sections(course_json)
+    logger.info('> Download completed!')
 
 
 if __name__ == '__main__':
