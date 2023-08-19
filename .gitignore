@@ -1,21 +1,16 @@
-# Virtual environment
+# virtual environment
 env
 
-# Cache files and logs
+# cache files and logs
 __pycache__/
 *.py[cod]
 
-# Environment Variables
+# environment Variables
 .env
 
-# Logs
+# logs
 logs
 
-# Temp folder
-tmp
-
-# Out folder
+# out - temp folder
 out
-
-# Videos folder
-videos
+temp
